@@ -72,7 +72,8 @@
                //console.log("xsize : " + xsize);               
                //console.log("hsize : " + hsize);
                x = x1;
-               while(x + xsize <= x2){
+               // some stupid floating error so we need to put -0.01
+               while(x + xsize - 0.01 <= x2){
                   positions2.push(x, y1, x+xsize, y1, x+xsize/2, y1 + hsize);
                   x = x+xsize;
                   //console.log("x : " + x);
@@ -83,10 +84,26 @@
                console.log("x2 : " + x2);
             }
             gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions2), gl.STATIC_DRAW);
-            draw(gl, program, positionAttributeLocation, positionBuffer, positions2.length);            
+            draw(gl, program, positionAttributeLocation, positionBuffer, positions2.length, 1);            
+            
+            gl.deleteShader(vertexShader);
+            gl.deleteShader(fragmentShader);
+            gl.deleteProgram(program);
+            gl.deleteBuffer(positionBuffer);
+            canvas = document.getElementById("canvas-2");
+            gl = canvas.getContext("webgl");
+            fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentSource);
+            vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexSource);
+            program = createProgram(gl, vertexShader, fragmentShader);
+            var twistedPositions = twist(positions2);
+            positionAttributeLocation = gl.getAttribLocation(program,"position");
+            positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(twistedPositions), gl.STATIC_DRAW);
+            draw(gl, program, positionAttributeLocation, positionBuffer, twistedPositions.length, 0);
          }
          
-         function draw(gl, program, positionAttributeLocation,positionBuffer,size){
+         function draw(gl, program, positionAttributeLocation,positionBuffer, size, type){
             webglUtils.resizeCanvasToDisplaySize(gl.canvas);
             gl.viewport(10, -10, gl.canvas.width, gl.canvas.height);
             gl.clearColor(0, 0, 0, 0);
@@ -95,8 +112,15 @@
             gl.enableVertexAttribArray(positionAttributeLocation);
             gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
             gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
-            for(let i = 0; i < size; i = i+3){
-               gl.drawArrays(gl.LINE_LOOP, i, 3);
+            if(type === 1){
+               for(let i = 0; i < size; i = i+3){
+                  gl.drawArrays(gl.LINE_LOOP, i, 3);
+               }
+            }
+            else{
+               for(let i = 0; i < size; i = i + 3){
+                  gl.drawArrays(gl.TRIANGLES, i, 6);
+               }
             }
          }
          
@@ -127,12 +151,14 @@
          
          function twist(positions){
             var newPositions = new Array();
-            let angle = Math.PI / 10;
+            let angle = Math.PI / 4;
             // x means horizontal coordinate, y means vertical coordinate
             // d is distance to origin
             let x,y,d;
             let newX,newY;
-            for(let i = 0;i < 6; i = i+2){
+            let size = positions.length;
+            console.log(size);   
+            for(let i = 0;i < size; i = i+2){
                x = positions[i];
                y = positions[i+1];
                d = Math.sqrt(x*x + y*y);
